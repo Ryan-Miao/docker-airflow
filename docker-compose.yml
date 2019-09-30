@@ -63,6 +63,13 @@ services:
             # - REDIS_PASSWORD=redispass
         ports:
             - "5555:5555"
+        volumes:
+            - ./dags:/usr/local/airflow/dags
+            - ./config/airflow.cfg:/usr/local/airflow/airflow.cfg
+            - ./config/requirements.txt:/requirements.txt
+            - ./plugins:/usr/local/airflow/plugins
+            - airflow_logs:/usr/local/airflow/logs
+            - ./opt:/data/opt
         command: flower
 
     scheduler:
