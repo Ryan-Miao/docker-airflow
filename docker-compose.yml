@@ -1,0 +1,115 @@
+version: '2.1'
+services:
+    redis:
+        image: 'redis:5.0.5'
+        # command: redis-server --requirepass redispass
+
+    postgres:
+        image: postgres:9.6
+        environment:
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+        ports:
+            - 3433:5432
+        # Uncomment these lines to persist data on the local filesystem.
+        #     - PGDATA=/var/lib/postgresql/data/pgdata
+        # volumes:
+        #     - ./pgdata:/var/lib/postgresql/data/pgdata
+
+    adminer:
+        image: adminer
+        restart: always
+        ports:
+         - 8090:8080
+    webserver:
+        image: ryan/airflow:1.10.5
+        restart: always
+        depends_on:
+            - postgres
+            - redis
+        environment:
+            - LOAD_EX=y
+            - FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - EXECUTOR=Celery
+            # - POSTGRES_USER=airflow
+            # - POSTGRES_PASSWORD=airflow
+            # - POSTGRES_DB=airflow
+            # - REDIS_PASSWORD=redispass
+            # - REDIS_HOST=redis
+        volumes:
+            - ./dags:/usr/local/airflow/dags
+            - ./config/airflow.cfg:/usr/local/airflow/airflow.cfg
+            - ./config/requirements.txt:/requirements.txt
+            - ./plugins:/usr/local/airflow/plugins
+            - airflow_logs:/usr/local/airflow/logs
+            - ./opt:/data/opt
+        ports:
+            - 8089:8080
+        command: webserver
+        healthcheck:
+            test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
+
+    flower:
+        image: ryan/airflow:1.10.5
+        restart: always
+        depends_on:
+            - redis
+        environment:
+            - EXECUTOR=Celery
+            # - REDIS_PASSWORD=redispass
+        ports:
+            - "5555:5555"
+        command: flower
+
+    scheduler:
+        image: ryan/airflow:1.10.5
+        restart: always
+        depends_on:
+            - webserver
+        volumes:
+            - ./dags:/usr/local/airflow/dags
+            - ./config/airflow.cfg:/usr/local/airflow/airflow.cfg
+            - ./config/requirements.txt:/requirements.txt
+            - ./plugins:/usr/local/airflow/plugins
+            - airflow_logs:/usr/local/airflow/logs
+            - ./opt:/data/opt
+        environment:
+            - LOAD_EX=n
+            - FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - EXECUTOR=Celery
+            # - POSTGRES_USER=airflow
+            # - POSTGRES_PASSWORD=airflow
+            # - POSTGRES_DB=airflow
+            # - REDIS_PASSWORD=redispass
+        command: scheduler
+
+    worker:
+        image: ryan/airflow:1.10.5
+        restart: always
+        depends_on:
+            - scheduler
+        volumes:
+            - ./dags:/usr/local/airflow/dags
+            - ./config/airflow.cfg:/usr/local/airflow/airflow.cfg
+            - ./config/requirements.txt:/requirements.txt
+            - ./plugins:/usr/local/airflow/plugins
+            - airflow_logs:/usr/local/airflow/logs
+            - ./opt:/data/opt
+        environment:
+            - FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - EXECUTOR=Celery
+            # - POSTGRES_USER=airflow
+            # - POSTGRES_PASSWORD=airflow
+            # - POSTGRES_DB=airflow
+            # - REDIS_PASSWORD=redispass
+
+        command: worker
+
+
+volumes:
+   airflow_logs:
+    external: false
